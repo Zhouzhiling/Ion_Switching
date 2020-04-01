@@ -11,6 +11,7 @@ class IonSwitchingLSTM(object):
     def __init__(self):
         self.time_steps = 100
         self.feature_dim = 1
+        self.label_dim = 4
         pass
 
     def load_data(self, path):
@@ -24,6 +25,9 @@ class IonSwitchingLSTM(object):
 
         X, y = self.preprocess(path)
 
+        # X = np.random.random((100, self.time_steps, self.feature_dim))
+        # y = np.random.random((100, self.label_dim))
+
         input_data = Input(shape=(self.time_steps, self.feature_dim,))
 
         lstm = LSTM(
@@ -35,7 +39,7 @@ class IonSwitchingLSTM(object):
         )(input_data)
 
         output = Dense(
-            units=1,
+            units=self.label_dim,
             activation='softmax'
         )(lstm)
 
@@ -100,7 +104,7 @@ class IonSwitchingLSTM(object):
         )(input_data)
 
         output = Dense(
-            units=1,
+            units=self.label_dim,
             activation='softmax'
         )(lstm)
 
@@ -111,4 +115,4 @@ class IonSwitchingLSTM(object):
 if __name__ == '__main__':
     ion_switching_lstm = IonSwitchingLSTM()
     ion_switching_lstm.train('data/train.csv')
-    ion_switching_lstm.test('data/test.csv')
+    # ion_switching_lstm.test('data/test.csv')
