@@ -13,7 +13,9 @@ class Visualization(object):
         pass
 
     def draw_statistics(self):
-        g = sns.relplot(x='time', y='signal', hue='open_channels', size='open_channels', data=self.data[:][:-1:10000])
+        type1 = self.data[:][self.data['open_channels']==1]
+        g = sns.relplot(x='time', y='signal', size=20, data=type1[:][:-1:100])
+        # g = sns.relplot(x='time', y='signal', hue='open_channels', size=20, data=self.data[:][:-1:5000])
         plt.show()
 
 
