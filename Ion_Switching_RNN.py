@@ -1,4 +1,4 @@
-from keras.layers import LSTM, Input, Dense, Lambda
+from keras.layers import LSTM, Input, Dense, Lambda, Flatten
 from keras.optimizers import RMSprop, Adam
 from keras import Model
 from keras.models import load_model
@@ -9,8 +9,8 @@ import numpy as np
 class IonSwitchingLSTM(object):
 
     def __init__(self):
-        self.window_size = 100
-        self.output_size = 1
+        self.time_steps = 100
+        self.feature_dim = 1
         pass
 
     def load_data(self, path):
@@ -24,17 +24,18 @@ class IonSwitchingLSTM(object):
 
         X, y = self.preprocess(path)
 
-        input_data = Input(shape=(self.window_size, self.output_size,))
+        input_data = Input(shape=(self.time_steps, self.feature_dim,))
 
         lstm = LSTM(
             units=150,
             activation='tanh',
             recurrent_activation='sigmoid',
-            use_bias=True
+            use_bias=True,
+            input_shape=(self.time_steps, self.feature_dim)
         )(input_data)
 
         output = Dense(
-            units=self.output_size,
+            units=1,
             activation='softmax'
         )(lstm)
 
@@ -88,21 +89,18 @@ class IonSwitchingLSTM(object):
     def test(self, path):
         X, y = self.preprocess(path)
 
-        input_data = Input(shape=(self.window_size, self.output_size,))
+        input_data = Input(shape=(self.time_steps, self.feature_dim,))
 
         lstm = LSTM(
             units=150,
             activation='tanh',
             recurrent_activation='sigmoid',
-            use_bias=True
+            use_bias=True,
+            input_shape=(self.time_steps, self.feature_dim)
         )(input_data)
 
-        lstm = Lambda(
-            lambda x: x / 0.75
-        )(lstm)
-
         output = Dense(
-            units=self.output_size,
+            units=1,
             activation='softmax'
         )(lstm)
 
