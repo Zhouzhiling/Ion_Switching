@@ -1,6 +1,7 @@
 from keras.layers import LSTM, Input, Dense, Lambda, Flatten
 from keras.optimizers import RMSprop, Adam
 from keras import Model
+import pandas as pd
 from keras.models import load_model
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 import numpy as np
@@ -15,10 +16,14 @@ class IonSwitchingLSTM(object):
         pass
 
     def load_data(self, path):
-        pass
+        return pd.read_csv(path)
 
     def preprocess(self, path):
         X, y = [], []
+        data = self.load_data(path)
+        data['open_channels']
+
+
         return X, y
 
     def train(self, path):
