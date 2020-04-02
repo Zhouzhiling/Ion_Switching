@@ -12,8 +12,7 @@ class IonSwitchingLSTM(object):
 
     def __init__(self):
         self.time_steps = 100
-        self.feature_dim = 1
-        self.label_dim = 4
+        self.label_dim = -1
         self.train_data, self.test_data = self.load_data('./data/')
 
     @staticmethod
@@ -24,26 +23,25 @@ class IonSwitchingLSTM(object):
 
     def preprocess(self, choice='train'):
         if choice == 'train':
-            features, label_in = self.train_data['signal'], self.train_data['open_channels']
+            features, label_in = self.train_data['signal'][:-1:100], self.train_data['open_channels'][:-1:100]
 
-            pre_channels = []
-            signals = features[:][100:]
-            labels = pd.DataFrame(utils.to_categorical(label_in[100:], dtype='int32'))
+            signals = np.reshape(features[100:].to_numpy(), (len(features[100:]), 1))
 
-            for i in range(0, len(features)-self.time_steps):
+            labels = pd.DataFrame(utils.to_categorical(label_in, dtype='int32')).to_numpy()
+            self.label_dim = np.size(labels, axis=1)
+
+            pre_channels = np.zeros((len(features) - self.time_steps, self.time_steps, self.label_dim))
+
+            for i in range(0, len(features) - self.time_steps):
                 pre_channel = labels[i:i + self.time_steps][:]
-                pre_channels.append(pre_channel.values)
+                pre_channels[i][:][:] = pre_channel
                 # signal = features[:][i+self.time_steps]
                 # signals.append(signal)
 
-            return labels, signals, pre_channels
+            return labels[100:], signals, np.reshape(pre_channels, (len(pre_channels), self.time_steps, self.label_dim))
 
     def train(self):
         labels, signals, pre_channels = self.preprocess(choice='train')
-
-        # X = np.random.random((100, self.time_steps, self.label_dim))
-        # s = np.random.random((100, 1))
-        # y = np.random.random((100, self.label_dim))
 
         X = signals
         y = labels
@@ -52,9 +50,8 @@ class IonSwitchingLSTM(object):
         signal = Input(shape=(1,))
 
         lstm = LSTM(
-            units=150,
+            units=256,
             activation='tanh',
-            recurrent_activation='sigmoid',
             use_bias=True
         )(input_data)
 
@@ -72,7 +69,7 @@ class IonSwitchingLSTM(object):
 
         model = Model([input_data, signal], output)
 
-        optimizer = Adam(learning_rate=0.01)
+        optimizer = Adam(learning_rate=0.1)
 
         model.compile(
             loss='categorical_crossentropy',
@@ -110,9 +107,10 @@ class IonSwitchingLSTM(object):
             x=[pre_channels, X],
             y=y,
             shuffle=True,
-            batch_size=1,
-            epochs=1,
-            callbacks=callbacks
+            batch_size=32,
+            epochs=10,
+            callbacks=callbacks,
+            validation_split=0.2
         )
 
         model.save('lstm.hdf5')
@@ -131,10 +129,13 @@ class IonSwitchingLSTM(object):
             seed = np.reshape(np.concatenate((seed[0][1:][:], curr)), (1, self.time_steps, self.label_dim))
             result.append(curr)
 
+        result = pd.DataFrame(result)
+        result.to_csv('result.csv')
+
         print(result)
 
 
 if __name__ == '__main__':
     ion_switching_lstm = IonSwitchingLSTM()
     ion_switching_lstm.train()
-    ion_switching_lstm.test()
+    # ion_switching_lstm.test()
