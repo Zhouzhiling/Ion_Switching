@@ -1,10 +1,11 @@
-from keras.layers import LSTM, Input, Dense, Lambda, Flatten
-from keras.optimizers import RMSprop, Adam
-from keras import Model, utils
-import pandas as pd
+from keras.layers import LSTM, Input, Dense, Concatenate
+from keras.optimizers import Adam
+from keras import Model
+from keras import utils
 from keras.models import load_model
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 import numpy as np
+import pandas as pd
 
 
 class IonSwitchingLSTM(object):
@@ -15,7 +16,8 @@ class IonSwitchingLSTM(object):
         self.label_dim = 4
         self.train_data, self.test_data = self.load_data('./data/')
 
-    def load_data(self, path):
+    @staticmethod
+    def load_data(path):
         train_data = pd.read_csv(path + 'train.csv')
         test_data = pd.read_csv(path + 'test.csv')
         return train_data, test_data
@@ -39,28 +41,36 @@ class IonSwitchingLSTM(object):
     def train(self):
         labels, signals, pre_channels = self.preprocess(choice='train')
 
-        # X = np.random.random((100, self.time_steps, self.feature_dim))
+        # X = np.random.random((100, self.time_steps, self.label_dim))
+        # s = np.random.random((100, 1))
         # y = np.random.random((100, self.label_dim))
 
         X = signals
         y = labels
 
-        input_data = Input(shape=(self.time_steps, self.feature_dim,))
+        input_data = Input(shape=(self.time_steps, self.label_dim,))
+        signal = Input(shape=(1,))
 
         lstm = LSTM(
             units=150,
             activation='tanh',
             recurrent_activation='sigmoid',
-            use_bias=True,
-            input_shape=(self.time_steps, self.feature_dim)
+            use_bias=True
         )(input_data)
 
-        output = Dense(
+        lstm = Dense(
             units=self.label_dim,
             activation='softmax'
         )(lstm)
 
-        model = Model(input_data, output)
+        mix = Concatenate()([lstm, signal])
+
+        output = Dense(
+            units=self.label_dim,
+            activation='softmax'
+        )(mix)
+
+        model = Model([input_data, signal], output)
 
         optimizer = Adam(learning_rate=0.01)
 
@@ -97,39 +107,34 @@ class IonSwitchingLSTM(object):
         ]
 
         model.fit(
-            x=X,
+            x=[pre_channels, X],
             y=y,
             shuffle=True,
-            batch_size=32,
-            epochs=100,
+            batch_size=1,
+            epochs=1,
             callbacks=callbacks
         )
 
         model.save('lstm.hdf5')
 
     def test(self):
-        # X, y = self.preprocess()
+        seed = np.random.random((1, self.time_steps, self.label_dim))
 
-        input_data = Input(shape=(self.time_steps, self.feature_dim,))
+        model = load_model('lstm.hdf5')
 
-        lstm = LSTM(
-            units=150,
-            activation='tanh',
-            recurrent_activation='sigmoid',
-            use_bias=True,
-            input_shape=(self.time_steps, self.feature_dim)
-        )(input_data)
+        result = []
 
-        output = Dense(
-            units=self.label_dim,
-            activation='softmax'
-        )(lstm)
+        for i in range(len(self.test_data)):
+            signal = np.reshape(self.test_data['signal'][i], (1, 1))
+            curr = model.predict([seed, signal])
 
-        model = Model(input_data, output)
-        model.load_weights('lstm_best_model_weights.hdf5')
+            seed = np.reshape(np.concatenate((seed[0][1:][:], curr)), (1, self.time_steps, self.label_dim))
+            result.append(curr)
+
+        print(result)
 
 
 if __name__ == '__main__':
     ion_switching_lstm = IonSwitchingLSTM()
     ion_switching_lstm.train()
-    # ion_switching_lstm.test('data/test.csv')
+    ion_switching_lstm.test()
